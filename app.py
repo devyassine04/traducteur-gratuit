@@ -1,12 +1,12 @@
 import streamlit as st
 import docx
-from deep_translator import GoogleTranslator
+from deep_translator import MyMemoryTranslator
 import io
-import time # Nécessaire pour la temporisation anti-blocage
+import time
 
 st.set_page_config(page_title="Traducteur Scolaire", page_icon="🏫")
-st.title("🌐 Traducteur de Cours & Examens (Version Gratuite)")
-st.warning("⚠️ Pour éviter les blocages de traduction, ce système traite le document lentement (environ 2 secondes par paragraphe). Merci de patienter pendant le chargement.")
+st.title("🌐 Traducteur de Cours & Examens (Version Gratuite Alternative)")
+st.warning("⚠️ Outil gratuit utilisant MyMemory Translator.")
 st.write("Format accepté : Uniquement Word (.docx) pour conserver la mise en page.")
 
 langues_cibles = {
@@ -20,25 +20,27 @@ langue_choisie = st.selectbox("Langue de destination :", list(langues_cibles.key
 fichier_upload = st.file_uploader("Uploadez votre fichier", type=["docx"])
 
 if st.button("Traduire le document") and fichier_upload is not None:
-    traducteur = GoogleTranslator(source='auto', target=langues_cibles[langue_choisie])
+    # Changement crucial ici : On utilise MyMemoryTranslator au lieu de GoogleTranslator
+    traducteur = MyMemoryTranslator(source='fr-FR', target=langues_cibles[langue_choisie])
     erreur_affichee = False
     
-    with st.spinner(f'Traduction en {langue_choisie} en cours... (Processus ralenti volontairement)'):
+    with st.spinner(f'Traduction en {langue_choisie} en cours...'):
         try:
             doc = docx.Document(fichier_upload)
             
-            # Traduction des paragraphes avec pause de 2 secondes
+            # Traduction des paragraphes
             for para in doc.paragraphs:
                 if para.text.strip():
                     try:
+                        # MyMemory est plus tolérant, on peut réduire la pause
                         para.text = traducteur.translate(para.text)
-                        time.sleep(2) 
+                        time.sleep(0.5) 
                     except Exception as e:
                         if not erreur_affichee:
-                            st.error(f"Erreur de connexion (Traduction ignorée sur un bloc) : {e}")
+                            st.error(f"Erreur mineure de traduction sur un paragraphe : {e}")
                             erreur_affichee = True
             
-            # Traduction des tableaux avec pause de 2 secondes
+            # Traduction des tableaux
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
@@ -46,7 +48,7 @@ if st.button("Traduire le document") and fichier_upload is not None:
                             if para.text.strip():
                                 try:
                                     para.text = traducteur.translate(para.text)
-                                    time.sleep(2)
+                                    time.sleep(0.5)
                                 except:
                                     pass
 

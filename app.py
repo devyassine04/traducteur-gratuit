@@ -1,52 +1,66 @@
 import streamlit as st
-import deepl
-import os
+import docx
+from deep_translator import GoogleTranslator
 import io
-
-API_KEY = "VOTRE_CLE_API_DEEPL" # <-- N'oubliez pas d'insérer votre vraie clé ici !
+import time # Nécessaire pour la temporisation anti-blocage
 
 st.set_page_config(page_title="Traducteur Scolaire", page_icon="🏫")
-st.title("🌐 Traducteur de Cours & Examens")
-st.write("Format accepté : Uniquement Word (.docx) avec conservation de la mise en page.")
+st.title("🌐 Traducteur de Cours & Examens (Version Gratuite)")
+st.warning("⚠️ Pour éviter les blocages de traduction, ce système traite le document lentement (environ 2 secondes par paragraphe). Merci de patienter pendant le chargement.")
+st.write("Format accepté : Uniquement Word (.docx) pour conserver la mise en page.")
 
 langues_cibles = {
-    "Allemand": "DE",
-    "Anglais": "EN-US",
-    "Arabe": "AR",
-    "Espagnol": "ES"
+    "Allemand": "de",
+    "Anglais": "en",
+    "Arabe": "ar",
+    "Espagnol": "es"
 }
 langue_choisie = st.selectbox("Langue de destination :", list(langues_cibles.keys()))
 
 fichier_upload = st.file_uploader("Uploadez votre fichier", type=["docx"])
 
 if st.button("Traduire le document") and fichier_upload is not None:
-    translator = deepl.Translator(API_KEY)
+    traducteur = GoogleTranslator(source='auto', target=langues_cibles[langue_choisie])
+    erreur_affichee = False
     
-    chemin_entree = fichier_upload.name
-    chemin_sortie = f"traduit_{fichier_upload.name}"
-    
-    with open(chemin_entree, "wb") as f: 
-        f.write(fichier_upload.getbuffer())
-    
-    with st.spinner("Traduction en cours..."):
+    with st.spinner(f'Traduction en {langue_choisie} en cours... (Processus ralenti volontairement)'):
         try:
-            translator.translate_document_from_filepath(
-                chemin_entree, 
-                chemin_sortie, 
-                target_lang=langues_cibles[langue_choisie]
-            )
+            doc = docx.Document(fichier_upload)
             
-            with open(chemin_sortie, "rb") as f:
-                st.download_button(
-                    label="⬇️ Télécharger le fichier traduit", 
-                    data=f, 
-                    file_name=chemin_sortie,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+            # Traduction des paragraphes avec pause de 2 secondes
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    try:
+                        para.text = traducteur.translate(para.text)
+                        time.sleep(2) 
+                    except Exception as e:
+                        if not erreur_affichee:
+                            st.error(f"Erreur de connexion (Traduction ignorée sur un bloc) : {e}")
+                            erreur_affichee = True
+            
+            # Traduction des tableaux avec pause de 2 secondes
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            if para.text.strip():
+                                try:
+                                    para.text = traducteur.translate(para.text)
+                                    time.sleep(2)
+                                except:
+                                    pass
+
+            doc_io = io.BytesIO()
+            doc.save(doc_io)
+            doc_io.seek(0)
+            
+            st.success("✅ Fichier Word traduit avec succès !")
+            st.download_button(
+                label="⬇️ Télécharger le Word", 
+                data=doc_io, 
+                file_name=f"Traduit_{fichier_upload.name}", 
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+
         except Exception as e:
-            st.error(f"Erreur de l'API DeepL : {e}")
-        finally:
-            if os.path.exists(chemin_entree):
-                os.remove(chemin_entree)
-            if os.path.exists(chemin_sortie):
-                os.remove(chemin_sortie)
+            st.error(f"Erreur technique de lecture du fichier : {e}")

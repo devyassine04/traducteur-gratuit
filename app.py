@@ -5,22 +5,23 @@ import io
 import time
 
 st.set_page_config(page_title="Traducteur Scolaire", page_icon="🏫")
-st.title("🌐 Traducteur de Cours & Examens (Version Gratuite Alternative)")
+st.title("🌐 Traducteur de Cours & Examens (Version Gratuite)")
 st.warning("⚠️ Outil gratuit utilisant MyMemory Translator.")
 st.write("Format accepté : Uniquement Word (.docx) pour conserver la mise en page.")
 
+# NOUVEAUX CODES DE LANGUE COMPATIBLES AVEC MYMEMORY
 langues_cibles = {
-    "Allemand": "de",
-    "Anglais": "en",
-    "Arabe": "ar",
-    "Espagnol": "es"
+    "Allemand": "de-DE",
+    "Anglais": "en-US",
+    "Arabe": "ar-SA",
+    "Espagnol": "es-ES"
 }
 langue_choisie = st.selectbox("Langue de destination :", list(langues_cibles.keys()))
 
 fichier_upload = st.file_uploader("Uploadez votre fichier", type=["docx"])
 
 if st.button("Traduire le document") and fichier_upload is not None:
-    # Changement crucial ici : On utilise MyMemoryTranslator au lieu de GoogleTranslator
+    # Utilisation des nouveaux codes de langue
     traducteur = MyMemoryTranslator(source='fr-FR', target=langues_cibles[langue_choisie])
     erreur_affichee = False
     
@@ -32,12 +33,16 @@ if st.button("Traduire le document") and fichier_upload is not None:
             for para in doc.paragraphs:
                 if para.text.strip():
                     try:
-                        # MyMemory est plus tolérant, on peut réduire la pause
-                        para.text = traducteur.translate(para.text)
-                        time.sleep(0.5) 
+                        # MyMemory renvoie parfois une liste si return_all n'est pas spécifié, on s'assure d'avoir du texte
+                        traduction = traducteur.translate(para.text, return_all=False)
+                        if isinstance(traduction, list):
+                            para.text = traduction[0]
+                        else:
+                            para.text = traduction
+                        time.sleep(0.3) # Pause légère
                     except Exception as e:
                         if not erreur_affichee:
-                            st.error(f"Erreur mineure de traduction sur un paragraphe : {e}")
+                            st.error(f"Avertissement de traduction sur un bloc : {e}")
                             erreur_affichee = True
             
             # Traduction des tableaux
@@ -47,8 +52,12 @@ if st.button("Traduire le document") and fichier_upload is not None:
                         for para in cell.paragraphs:
                             if para.text.strip():
                                 try:
-                                    para.text = traducteur.translate(para.text)
-                                    time.sleep(0.5)
+                                    traduction = traducteur.translate(para.text, return_all=False)
+                                    if isinstance(traduction, list):
+                                        para.text = traduction[0]
+                                    else:
+                                        para.text = traduction
+                                    time.sleep(0.3)
                                 except:
                                     pass
 
